@@ -1,0 +1,357 @@
+<!doctype html>
+<html>
+
+<head>
+  <title>Day 06 Game</title>
+  <style>
+    * {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+
+</head>
+
+<body>
+  <canvas id="canv"></canvas>
+  <!-- Engine-specific Code -->
+  <script src="./engine/Vector2.js"></script>
+  <script src="./engine/Scene.js"></script>
+  <script src="./engine/GameObject.js"></script>
+  <script src="./engine/Component.js"></script>
+  <script src="./engine/Input.js"></script>
+  <script src="./engine/Engine.js"></script>
+  <script src="./engine/Time.js"></script>
+
+  <script src="./engine/components/Transform.js"></script>
+  <script src="./engine/components/Polygon.js"></script>
+
+  <script>
+    class MainScene extends Scene {
+      constructor() {
+        super()
+
+        //Create the background for the 16 squares on the "board"
+        this.instantiate(new EmptySquareGameObject, new Vector2(50, 50))
+        this.instantiate(new EmptySquareGameObject, new Vector2(50, 150))
+        this.instantiate(new EmptySquareGameObject, new Vector2(50, 250))
+        this.instantiate(new EmptySquareGameObject, new Vector2(50, 350))
+
+        this.instantiate(new EmptySquareGameObject, new Vector2(150, 50))
+        this.instantiate(new EmptySquareGameObject, new Vector2(150, 150))
+        this.instantiate(new EmptySquareGameObject, new Vector2(150, 250))
+        this.instantiate(new EmptySquareGameObject, new Vector2(150, 350))
+
+        this.instantiate(new EmptySquareGameObject, new Vector2(250, 50))
+        this.instantiate(new EmptySquareGameObject, new Vector2(250, 150))
+        this.instantiate(new EmptySquareGameObject, new Vector2(250, 250))
+        this.instantiate(new EmptySquareGameObject, new Vector2(250, 350))
+
+        this.instantiate(new EmptySquareGameObject, new Vector2(350, 50))
+        this.instantiate(new EmptySquareGameObject, new Vector2(350, 150))
+        this.instantiate(new EmptySquareGameObject, new Vector2(350, 250))
+        this.instantiate(new EmptySquareGameObject, new Vector2(350, 350))
+
+        //Create the controller game object that monitors the keyboard and the state of the game
+        this.instantiate(new ControllerGameObject())
+      }
+    }
+
+    //Game Object in the background for board positions
+    class EmptySquareGameObject extends GameObject {
+      constructor() {
+        super("Empty Square")
+        this.addComponent(new Polygon, { fillStyle: "gray", points: [new Vector2(-1, -1), new Vector2(-1, 1), new Vector2(1, 1), new Vector2(1, -1)] })
+        this.transform.scale = new Vector2(45, 45)
+      }
+    }
+
+    //Invisible game object that listens to the keyboard and controls the game
+    class ControllerGameObject extends GameObject {
+      constructor() {
+        super("Controller Game Object")
+        this.addComponent(new Controller())
+      }
+    }
+
+    //Blocks that get moved around the board
+    class BlockGameObject extends GameObject {
+      constructor() {
+        super("Block Game Object")
+        this.addComponent(new Polygon, { fillStyle: "green", points: [new Vector2(-1, -1), new Vector2(-1, 1), new Vector2(1, 1), new Vector2(1, -1)] })
+        this.addComponent(new TextComponent(), { fillStyle: "white", text: "2" })
+        this.addComponent(new BlockController())
+        this.transform.scale = new Vector2(45, 45)
+      }
+    }
+
+    //The main controller for the game
+    class Controller extends Component {
+      started = false //Has the component been started?
+      moving = false //Is the board in a moving state
+      movingUntil = -1 //If the board is moving, when will it be done moving?
+      canAddBlock = false //Should I add a block when the board stops moving?
+
+      start() {
+        this.elapsedTime = 0 //How long the game has been going on
+      }
+
+      update() {
+        if (!this.started) { //What to do if we haven't started yet
+          this.started = true
+          //Generate two random blocks
+          for (let i = 0; i < 2; i++) {
+            let location = getRandomOpenSpot()
+            let block = new BlockGameObject()
+            block.getComponent(BlockController).indexX = location[0]
+            block.getComponent(BlockController).indexY = location[1]
+            block.getComponent(BlockController).number = (i + 1) * 2
+            block.transform.position = new Vector2(location[0] * 100 + 50, location[1] * 100 + 50)
+            block.transform.scale = Vector2.zero
+
+            Engine.currentScene.instantiate(block)
+
+          }
+        }
+
+        //Update how much time has passed
+        this.elapsedTime += Time.deltaTime
+
+        //Get a list of the current blocks on the board
+        let currentBlocks = Engine.currentScene.gameObjects.filter(go => go.name == "Block Game Object")
+
+        //Don't do anything if the board is full
+        //TODO: We should only trigger this if nothing can move.
+        if (currentBlocks.length == 16) {
+          return
+        }
+
+
+
+        if (this.moving) {
+          //If we are in a moving state, check to see if we are done moving
+          if (this.movingUntil <= this.elapsedTime)
+            this.moving = false
+        }
+
+        //Track what move we decided to make
+        let offset = Vector2.zero
+
+        //If we are not in a moving state...
+        if (!this.moving) {
+
+          //If I can add a block...
+          if (this.canAddBlock) {
+
+            //Add a block
+            this.canAddBlock = false
+            let location = getRandomOpenSpot()
+            let block = new BlockGameObject()
+            block.getComponent(BlockController).indexX = location[0]
+            block.getComponent(BlockController).indexY = location[1]
+            block.getComponent(BlockController).number = Math.random() < .5 ? 2 : 4
+            block.transform.position = new Vector2(location[0] * 100 + 50, location[1] * 100 + 50)
+            block.transform.scale = Vector2.zero
+
+            Engine.currentScene.instantiate(block)
+
+            //Recalculate the current blocks since we added something
+            currentBlocks = Engine.currentScene.gameObjects.filter(go => go.name == "Block Game Object")
+          }
+
+          //Set the offset based on which keys is pressed
+          if (Input.keysDown.includes("ArrowUp")) offset = Vector2.up
+          if (Input.keysDown.includes("ArrowDown")) offset = Vector2.down
+          if (Input.keysDown.includes("ArrowLeft")) offset = Vector2.left
+          if (Input.keysDown.includes("ArrowRight")) offset = Vector2.right
+
+        }
+
+        //See if any key was pressed
+        if (offset.x != 0 || offset.y != 0) {
+
+          //For all blocks, see if we moved anything
+          let didSomethingMove = false
+
+          //Loop from the blocks closest to the destination edge to those furtherst away
+          for (let i = 0; i < 4; i++) {
+
+            //Filter blocks based on which way we are moving.
+            let filter
+            if (offset.x == -1) filter = block => block.getComponent(BlockController).indexX == i
+            if (offset.x == 1) filter = block => block.getComponent(BlockController).indexX == 3 - i
+            if (offset.y == -1) filter = block => block.getComponent(BlockController).indexY == i
+            if (offset.y == 1) filter = block => block.getComponent(BlockController).indexY == 3 - i
+
+            //Get the blocks in order
+            const filteredBlocks = currentBlocks.filter(filter)
+
+            //Loop through all the blocks
+            for (const block of filteredBlocks) {
+
+              //Track if something changed for this block.
+              //If something did change, then we loop again
+              //This moves blocks all the way to the edge
+              let didChange = true
+
+              //Fail safe for our while loop to make sure we don't get in an infinite loop
+              let count = 0
+
+              //Loop until we don't change or we run out of tries
+              while (didChange && count < 1000) {
+
+                //Assume nothing changed
+                didChange = false
+
+                //Store the current position of the block on the grid
+                const currentIndex = [block.getComponent(BlockController).indexX, block.getComponent(BlockController).indexY]
+
+                //If we are at an edge, stop
+                if (currentIndex[0] == 0 && offset.x == -1) continue
+                if (currentIndex[0] == 3 && offset.x == 1) continue
+                if (currentIndex[1] == 0 && offset.y == -1) continue
+                if (currentIndex[1] == 3 && offset.y == 1) continue
+
+                //See if we wil collide with any blocks
+                const collisionBlock = currentBlocks.find(b =>
+                  b != block &&
+                  b.getComponent(BlockController).indexX == currentIndex[0] + offset.x &&
+                  b.getComponent(BlockController).indexY == currentIndex[1] + offset.y &&
+                  !b.markForDelete
+                )
+
+                //If we would run into a block...
+                if (collisionBlock) {
+                  //...and that block has the same number...
+                  if (collisionBlock.getComponent(BlockController).number == block.getComponent(BlockController).number) {
+                    //...merge the two blocks
+                    block.destroy()
+                    collisionBlock.getComponent(BlockController).number *= 2
+                    collisionBlock.transform.scale = new Vector2(75, 75)
+                    didSomethingMove = true
+                  }
+                  //Regardless of whether we matched, stop updating this block
+                  continue
+                }
+
+                //If we get here, we moved without collision
+                didSomethingMove = true
+                didChange = true
+
+                //Actually move the block
+                block.getComponent(BlockController).indexX += offset.x
+                block.getComponent(BlockController).indexY += offset.y
+              }
+
+              //We are done with the while loop,
+              //so check our failsafe.
+              if (count >= 1000)
+                console.error("Too many attempts")
+
+            }
+          }
+
+          //Make state changes based on whether or not we moved anything
+          if (didSomethingMove) {
+            //Change the state to moving
+            this.moving = true
+
+            //Determine how long we will be moving
+            this.movingUntil = this.elapsedTime + .5
+
+            //Store that we need to add a block when we are not moving anymore
+            this.canAddBlock = true
+          }
+
+        }
+      }
+    }
+
+    //Draw text to the screen
+    class TextComponent extends Component {
+      fillStyle = "magenta"
+      text = "NO TEXT"
+      font = "20px Arial"
+      draw(ctx) {
+        ctx.fillStyle = this.fillStyle
+        ctx.font = this.font
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        ctx.fillText(this.text, this.transform.position.x, this.transform.position.y)
+      }
+    }
+
+    //The controller for the blocks
+    class BlockController extends Component {
+      start() {
+      }
+      update() {
+        //Update the text of the text component
+        this.gameObject.getComponent(TextComponent).text = this.number
+
+        this.gameObject.getComponent(TextComponent).fillStyle = this.number < 8 ? "black" : "white"
+
+        //Update the color of tiles
+        this.gameObject.getComponent(Polygon).fillStyle = [
+          "",
+          "#EEE4DA",
+          "#EDE0C8",
+          "#F2B179",
+          "#F59563",
+          "#F67C5F",
+          "#F65E3B",
+          "#EDCF72",
+          "#EDCC61",
+          "#EDC850",
+          "#EDC53F",
+          "#EDC22E",
+          "black",
+          "black",
+          "black",
+          "black",
+          "black",
+        ][Math.floor(Math.log2(this.number))]
+
+        //Figure out where we are trying to go
+        const goalLocation = [this.indexX * 100 + 50, this.indexY * 100 + 50]
+
+        //Factor for how quickly we shift to our final location. Must be between 0 and 1
+        //Higher numbers make blocks move slower
+        const factor = .9
+
+        //Slowly move the blocks to their destinations and make sure they are the right size
+        this.transform.position = new Vector2(factor * this.transform.position.x + (1 - factor) * goalLocation[0], factor * this.transform.position.y + (1 - factor) * goalLocation[1],)
+        this.transform.scale = new Vector2(factor * this.transform.scale.x + (1 - factor) * 45, factor * this.transform.scale.y + (1 - factor) * 45)
+      }
+    }
+
+    //Helper function that gets a random integer in [0, 3]
+    function randomIndex() {
+      return Math.floor(Math.random() * 4)
+    }
+
+    //Helper function that finds a random spot on the board
+    function getRandomOpenSpot() {
+      const currentBlocks = Engine.currentScene.gameObjects.filter(go => go.name == "Block Game Object")
+      if (currentBlocks.length == 16) return null
+      let randomIndexPair
+      let tries = 0
+      do {
+        tries++
+        randomIndexPair = [randomIndex(), randomIndex()]
+      } while (tries < 1000 && currentBlocks.find(b => b.getComponent(BlockController).indexX == randomIndexPair[0] && b.getComponent(BlockController).indexY == randomIndexPair[1]))
+      if (tries == 1000)
+        console.error("Hit max tries")
+      return randomIndexPair
+
+    }
+
+
+
+
+    Engine.currentScene = new MainScene()
+    Engine.start()
+  </script>
+</body>
+
+</html>

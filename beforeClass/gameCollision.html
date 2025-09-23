@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+
+<head>
+  <title>Game Collision</title>
+  <style>
+    * {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+
+</head>
+
+<body>
+  <canvas id="canv"></canvas>
+  <!-- Engine-specific Code -->
+  <script src="./engine/Vector2.js"></script>
+  <script src="./engine/Scene.js"></script>
+  <script src="./engine/GameObject.js"></script>
+  <script src="./engine/Component.js"></script>
+  <script src="./engine/Input.js"></script>
+  <script src="./engine/Engine.js"></script>
+  <script src="./engine/Collisions.js"></script>
+
+  <script src="./engine/components/Transform.js"></script>
+  <script src="./engine/components/Polygon.js"></script>
+  <script src="./engine/components/Collider.js"></script>
+
+  <!-- Game-specific Code -->
+
+
+
+  <script>
+
+    class MainScene extends Scene {
+      constructor() {
+        super()
+        this.instantiate(new SquareGameObject, new Vector2(100, 100))
+        this.instantiate(new SquareGameObject, new Vector2(125, 110))
+        this.instantiate(new SquareGameObject, new Vector2(325, 125))
+        this.instantiate(new TriangleUpGameObject, new Vector2(325, 224))
+        this.instantiate(new TriangleDownGameObject, new Vector2(375, 224))
+        this.instantiate(new TriangleDownGameObject, new Vector2(175, 50))
+        this.instantiate(new CollisionCheckerGameObject())
+      }
+    }
+
+    class SquareGameObject extends GameObject {
+      constructor() {
+        super()
+        this.addComponent(new Polygon, { fillStyle: "rgba(255, 0, 0, .75)", points: [new Vector2(-1, -1), new Vector2(1, -1), new Vector2(1, 1), new Vector2(-1, 1)] })
+        this.addComponent(new LabelerComponent())
+        this.transform.scale = new Vector2(50, 50)
+      }
+    }
+
+    class TriangleUpGameObject extends GameObject {
+      constructor() {
+        super()
+        this.addComponent(new Polygon, { fillStyle: "rgba(0, 255, 0, .75)", points: [new Vector2(0, -1), new Vector2(-.5, .5), new Vector2(.5, .5)] })
+        this.addComponent(new LabelerComponent())
+        this.transform.scale = new Vector2(50, 50)
+      }
+    }
+    class TriangleDownGameObject extends GameObject {
+      constructor() {
+        super()
+        this.addComponent(new Polygon, { fillStyle: "rgba(0, 0, 255, .5)", points: [new Vector2(0, 1), new Vector2(-.5, -.5), new Vector2(.5, -.5)] })
+        this.addComponent(new LabelerComponent())
+        this.transform.scale = new Vector2(50, 50)
+      }
+    }
+
+    class CollisionCheckerGameObject extends GameObject {
+      constructor() {
+        super()
+        this.addComponent(new CollisionChecker())
+      }
+    }
+
+    class CollisionChecker extends Component {
+      start() {
+        const gameObjects = Engine.currentScene.gameObjects
+        for (let i = 0; i < gameObjects.length; i++) {
+          for (let j = i + 1; j < gameObjects.length - 1; j++) {
+            const colliding = Collisions.inCollision(gameObjects[i], gameObjects[j])
+            if (colliding)
+              console.log(`${i} ${j} ${colliding}`)
+          }
+        }
+      }
+    }
+
+    class LabelerComponent extends Component {
+      draw(ctx) {
+        ctx.fillStyle = "white"
+        ctx.fillText(Engine.currentScene.gameObjects.indexOf(this.gameObject), this.transform.position.x, this.transform.position.y)
+      }
+    }
+
+
+
+    Engine.currentScene = new MainScene()
+    Engine.start()
+
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Day 07 Game</title>
+    <style>
+        *{
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+
+</head>
+
+<body>
+    <canvas id="canv"></canvas>
+    <!-- Engine-specific Code -->
+    <script src="./engine/Vector2.js"></script>
+    <script src="./engine/Scene.js"></script>
+    <script src="./engine/GameObject.js"></script>
+    <script src="./engine/Component.js"></script>
+    <script src="./engine/Input.js"></script>
+    <script src="./engine/Engine.js"></script>
+    <script src="./engine/Time.js"></script>
+
+    <script src="./engine/components/Transform.js"></script>
+    <script src="./engine/components/Polygon.js"></script>
+
+    <!-- Game-specific Code -->
+    <script src="./game/scenes/MainScene.js"></script>
+
+    <script src="./game/prefabs/TriangleGameObject.js"></script>
+    <script src="./game/prefabs/SquareGameObject.js"></script>
+    <script src="./game/prefabs/LaserGameObject.js"></script>
+    
+    <script src="./game/components/TriangleController.js"></script>
+    <script src="./game/components/SquareController.js"></script>
+    <script src="./game/components/LaserController.js"></script>
+    
+    
+    <script>
+        Engine.currentScene = new MainScene()
+        Engine.start()
+    </script>
+</body>
+
+</html>
