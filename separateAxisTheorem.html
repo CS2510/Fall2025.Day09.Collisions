@@ -1,0 +1,204 @@
+<!doctype html>
+<html>
+
+<head>
+  <title>Demonstration of Collisions</title>
+  <style>
+    * {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+
+</head>
+
+<body>
+  <canvas id="canv"></canvas>
+  <!-- Engine-specific Code -->
+  <script src="./engine/Vector2.js"></script>
+  <script src="./engine/Scene.js"></script>
+  <script src="./engine/GameObject.js"></script>
+  <script src="./engine/Component.js"></script>
+  <script src="./engine/Input.js"></script>
+  <script src="./engine/Engine.js"></script>
+  <script src="./engine/Collisions.js"></script>
+  <script src="./engine/Time.js"></script>
+
+  <script src="./engine/components/Transform.js"></script>
+  <script src="./engine/components/Polygon.js"></script>
+  <script src="./engine/components/Collider.js"></script>
+
+  <!-- Game-specific Code -->
+
+
+
+  <script>
+
+    class MainScene extends Scene {
+      constructor() {
+        super()
+        this.instantiate(new SquareGameObject, new Vector2(300, 300))
+        this.instantiate(new SquareGameObject2, new Vector2(425, 310))
+        this.instantiate(new DemonstrationLineGameObject(), new Vector2(300, 600))
+      }
+    }
+
+    class DemonstrationLineGameObject extends GameObject {
+      constructor() {
+        super("Demonstration Line Game Object")
+        this.addComponent(new DemonstrationLineComponent())
+      }
+    }
+
+    class DemonstrationLineComponent extends Component {
+      delta = 0
+      update() {
+        if (Input.keysDown.includes("ArrowLeft")) 
+          this.delta += Time.deltaTime
+        
+        if (Input.keysDown.includes("ArrowRight")) 
+          this.delta -= Time.deltaTime
+        
+
+        //Get all the values we are going to draw on the screen
+
+        this.origin = new Vector2(300, 300).plus(new Vector2(Math.cos(this.delta + Math.PI / 2), Math.sin(this.delta + Math.PI / 2)).times(200))
+        this.tangent = new Vector2(Math.cos(this.delta), Math.sin(this.delta))
+        this.other = this.origin.plus(this.tangent)
+        this.diff = this.other.minus(this.origin)
+        this.otherTemp = this.origin.plus(this.diff.times(1000))
+        this.otherTemp2 = this.origin.minus(this.diff.times(1000))
+
+        this.projectedPoints1 = []
+        this.projectedPoints2 = []
+
+        const gameObjects = Engine.currentScene.gameObjects.filter(go => go.getComponent(Collider))
+        this.onePoints = gameObjects[0].getComponent(Polygon).points.map(p => p.scale(gameObjects[0].transform.scale).plus(gameObjects[0].transform.position))
+        this.twoPoints = gameObjects[1].getComponent(Polygon).points.map(p => p.scale(gameObjects[1].transform.scale).plus(gameObjects[1].transform.position))
+
+        this.projectedPoints1 = this.onePoints.map(p => this.origin.plus(this.tangent.times(this.tangent.dot(p.minus(this.origin)))))
+        this.projectedPoints2 = this.twoPoints.map(p => this.origin.plus(this.tangent.times(this.tangent.dot(p.minus(this.origin)))))
+
+
+        this.oneMin = this.projectedPoints1.reduce((a, b) => a.minus(this.origin).dot(this.tangent) < b.minus(this.origin).dot(this.tangent) ? a : b)
+        this.oneMax = this.projectedPoints1.reduce((a, b) => a.minus(this.origin).dot(this.tangent) > b.minus(this.origin).dot(this.tangent) ? a : b)
+        this.twoMin = this.projectedPoints2.reduce((a, b) => a.minus(this.origin).dot(this.tangent) < b.minus(this.origin).dot(this.tangent) ? a : b)
+        this.twoMax = this.projectedPoints2.reduce((a, b) => a.minus(this.origin).dot(this.tangent) > b.minus(this.origin).dot(this.tangent) ? a : b)
+
+        this.separateAxisPoint = null
+
+        if (this.oneMin.minus(this.origin).dot(this.tangent) > this.twoMax.minus(this.origin).dot(this.tangent)) {
+          this.separateAxisPoint = this.oneMin.plus(this.twoMax).times(.5)
+        }
+        if (this.twoMin.minus(this.origin).dot(this.tangent) > this.oneMax.minus(this.origin).dot(this.tangent)) {
+          this.separateAxisPoint = this.twoMin.plus(this.oneMax).times(.5)
+        }
+
+      }
+      draw(ctx) {
+
+        //Draw the projection line
+        if (true) {
+          ctx.save()
+          ctx.strokeStyle = "gray"
+          ctx.setLineDash([10])
+          ctx.lineWidth = 5
+          ctx.beginPath()
+          ctx.lineTo(this.otherTemp2.x, this.otherTemp2.y)
+          ctx.lineTo(this.otherTemp.x, this.otherTemp.y)
+          ctx.stroke()
+          ctx.restore()
+        }
+
+        if (true) {
+          //Draw the projections
+          for (const pointCollection of [this.projectedPoints1, this.projectedPoints2]) {
+            for (let i = 0; i < pointCollection.length; i++) {
+              const projectedPoint = pointCollection[i]
+              const point = pointCollection == this.projectedPoints1 ? this.onePoints[i] : this.twoPoints[i]
+
+
+              ctx.strokeStyle = pointCollection == this.projectedPoints1 ? "white" : "magenta"
+              ctx.beginPath()
+
+              ctx.lineTo(projectedPoint.x, projectedPoint.y)
+              ctx.lineTo(point.x, point.y)
+              ctx.stroke()
+            }
+          }
+        }
+
+        //Now draw the range 
+        if (true) {
+          ctx.save()
+          ctx.lineWidth = 5
+          ctx.strokeStyle = "white"
+          ctx.beginPath()
+          let a = this.oneMin.plus(this.tangent.orthogonal().times(-2))
+          let b = this.oneMax.plus(this.tangent.orthogonal().times(-2))
+          ctx.lineTo(a.x, a.y)
+          ctx.lineTo(b.x, b.y)
+          ctx.stroke()
+
+          ctx.strokeStyle = "magenta"
+          ctx.beginPath()
+          a = this.twoMin.plus(this.tangent.orthogonal().times(2))
+          b = this.twoMax.plus(this.tangent.orthogonal().times(2))
+          ctx.lineTo(a.x, a.y)
+          ctx.lineTo(b.x, b.y)
+          ctx.stroke()
+          ctx.restore()
+        }
+
+        if (true) {
+          //Draw separate axis line (if available)
+          if (this.separateAxisPoint) {
+            ctx.save()
+            ctx.strokeStyle = "cyan"
+            ctx.setLineDash([10])
+            ctx.beginPath()
+            let a = this.separateAxisPoint.minus(this.tangent.orthogonal().times(1000))
+            let b = this.separateAxisPoint.plus(this.tangent.orthogonal().times(1000))
+            ctx.lineTo(a.x, a.y)
+            ctx.lineTo(b.x, b.y)
+            ctx.stroke()
+            ctx.restore()
+          }
+        }
+      }
+
+    }
+
+    class SquareGameObject extends GameObject {
+      constructor() {
+        super()
+        this.addComponent(new Polygon, { fillStyle: "rgba(200, 200, 200, .75)", points: [new Vector2(-1, -1), new Vector2(1, -1), new Vector2(1, 1), new Vector2(-1, 1)] })
+        this.addComponent(new LabelerComponent())
+        this.addComponent(new Collider())
+        this.transform.scale = new Vector2(50, 50)
+      }
+    }
+    class SquareGameObject2 extends GameObject {
+      constructor() {
+        super()
+        this.addComponent(new Polygon, { fillStyle: "rgba(200, 0, 200, .75)", points: [new Vector2(-1, -1), new Vector2(1, -1), new Vector2(1, 1), new Vector2(-1, 1)] })
+        this.addComponent(new LabelerComponent())
+        this.addComponent(new Collider())
+        this.transform.scale = new Vector2(50, 50)
+      }
+    }
+
+    class LabelerComponent extends Component {
+      draw(ctx) {
+        ctx.fillStyle = "white"
+        ctx.fillText(Engine.currentScene.gameObjects.indexOf(this.gameObject), this.transform.position.x, this.transform.position.y)
+      }
+    }
+
+    Engine.currentScene = new MainScene()
+    Engine.start()
+
+  </script>
+</body>
+
+</html>
