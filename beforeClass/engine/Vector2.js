@@ -79,4 +79,8 @@ class Vector2 {
     orthogonal(){
         return new Vector2(-this.y, this.x)
     }
+
+    get magnitude(){
+        return Math.sqrt(this.x**2+this.y**2)
+    }
 }
